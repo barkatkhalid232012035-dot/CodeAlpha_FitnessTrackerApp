@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fitness Tracker App — CodeAlpha Internship</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div>
+      <span class="brand-badge">CodeAlpha Internship • Task 3</span>
+      <h1 class="brand-title">Fitness Tracker Dashboard</h1>
+    </div>
+    <div class="header-actions">
+      <button id="btnOpenGoalsModal" class="btn btn-secondary" title="Configure your daily targets">
+        <span>🎯 Daily Goals</span>
+      </button>
+      <button id="btnOpenLogModal" class="btn btn-primary" title="Log a new workout activity">
+        <span>➕ Log Activity</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Container -->
+  <main class="dashboard-container">
+
+    <!-- Daily Progress Metric Cards (Rings & Stats) -->
+    <section class="metrics-grid" aria-label="Today's fitness progress">
+
+      <!-- Steps Card -->
+      <article class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Today's Steps</span>
+          <div class="metric-val">
+            <span id="todayStepsVal">0</span>
+            <span class="metric-unit">steps</span>
+          </div>
+          <span id="todayStepsSub" class="metric-sub">Goal: 10,000 steps</span>
+        </div>
+        <div class="ring-container">
+          <svg class="ring-svg" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="36" />
+            <circle id="stepsRingCircle" class="ring-progress" cx="45" cy="45" r="36" stroke="#10b981" />
+          </svg>
+          <div id="stepsRingPercent" class="ring-percent-text" style="color: #10b981;">0%</div>
+        </div>
+      </article>
+
+      <!-- Calories Card -->
+      <article class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Calories Burned</span>
+          <div class="metric-val">
+            <span id="todayCaloriesVal">0</span>
+            <span class="metric-unit">kcal</span>
+          </div>
+          <span id="todayCaloriesSub" class="metric-sub">Goal: 500 kcal</span>
+        </div>
+        <div class="ring-container">
+          <svg class="ring-svg" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="36" />
+            <circle id="caloriesRingCircle" class="ring-progress" cx="45" cy="45" r="36" stroke="#f43f5e" />
+          </svg>
+          <div id="caloriesRingPercent" class="ring-percent-text" style="color: #f43f5e;">0%</div>
+        </div>
+      </article>
+
+      <!-- Active Minutes Card -->
+      <article class="metric-card">
+        <div class="metric-info">
+          <span class="metric-label">Active Workout</span>
+          <div class="metric-val">
+            <span id="todayMinutesVal">0</span>
+            <span class="metric-unit">mins</span>
+          </div>
+          <span id="todayMinutesSub" class="metric-sub">Goal: 45 mins</span>
+        </div>
+        <div class="ring-container">
+          <svg class="ring-svg" viewBox="0 0 90 90">
+            <circle class="ring-bg" cx="45" cy="45" r="36" />
+            <circle id="minutesRingCircle" class="ring-progress" cx="45" cy="45" r="36" stroke="#0ea5e9" />
+          </svg>
+          <div id="minutesRingPercent" class="ring-percent-text" style="color: #0ea5e9;">0%</div>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- Weekly 7-Day Interactive Progress Chart -->
+    <section class="chart-section-card" aria-label="Weekly activity trends">
+      <div class="chart-header">
+        <div class="chart-title-area">
+          <h2>Weekly Progress Analysis</h2>
+          <p class="chart-subtitle">Historical breakdown across the past 7 days</p>
+        </div>
+        <div class="metric-toggle-group">
+          <button class="btn-toggle btn-chart-metric is-active" data-metric="duration">Duration (mins)</button>
+          <button class="btn-toggle btn-chart-metric" data-metric="calories">Calories (kcal)</button>
+          <button class="btn-toggle btn-chart-metric" data-metric="steps">Steps</button>
+        </div>
+      </div>
+
+      <div id="weeklyChartContainer" class="chart-stage">
+        <!-- Pure dynamic SVG chart rendered via chart-renderer.js -->
+      </div>
+    </section>
+
+    <!-- Rolling 7-Day Rollup Summary Bar -->
+    <section class="weekly-rollup-grid" aria-label="Weekly metric rollups">
+      <div class="rollup-item">
+        <span class="rollup-label">Total Workouts (7d)</span>
+        <span id="weeklyWorkoutsVal" class="rollup-val">0</span>
+      </div>
+      <div class="rollup-item">
+        <span class="rollup-label">Active Time (7d)</span>
+        <span id="weeklyMinutesVal" class="rollup-val">0m</span>
+      </div>
+      <div class="rollup-item">
+        <span class="rollup-label">Total Steps (7d)</span>
+        <span id="weeklyStepsVal" class="rollup-val">0</span>
+      </div>
+      <div class="rollup-item">
+        <span class="rollup-label">Total Calories (7d)</span>
+        <span id="weeklyCaloriesVal" class="rollup-val">0</span>
+      </div>
+    </section>
+
+    <!-- Activity Log History Table -->
+    <section class="history-section-card" aria-label="Logged activities history">
+      <div class="history-header">
+        <h2 class="history-title">Activity History Log</h2>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">
+          Manual Entry &bull; LocalStorage Saved
+        </span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="activity-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Exercise Type</th>
+              <th>Duration</th>
+              <th>Calories</th>
+              <th>Steps</th>
+              <th>Notes</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="activityTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="noActivitiesNotice" style="display: none; text-align: center; color: var(--text-muted); padding: 2rem;">
+        No activities logged yet. Click "Log Activity" to start tracking your fitness!
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Log Activity Modal Dialog -->
+  <div id="logModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="logModalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="logModalTitle" class="modal-title">Log Fitness Activity</h2>
+        <button id="btnCloseLogModal" class="modal-close-btn" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="logForm">
+        <div class="modal-body">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="inputType" class="form-label">Exercise Type <span style="color:var(--danger)">*</span></label>
+              <select id="inputType" class="form-select" required>
+                <option value="Running">Running</option>
+                <option value="Walking">Walking</option>
+                <option value="Cycling">Cycling</option>
+                <option value="Swimming">Swimming</option>
+                <option value="Strength Training">Strength Training</option>
+                <option value="HIIT">HIIT (High Intensity)</option>
+                <option value="Yoga">Yoga</option>
+                <option value="Other">Other Workout</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="inputDuration" class="form-label">Duration (Minutes) <span style="color:var(--danger)">*</span></label>
+              <input type="number" id="inputDuration" class="form-input" min="1" max="1440" placeholder="e.g. 30" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="inputCalories" class="form-label">Calories Burned (kcal)</label>
+              <input type="number" id="inputCalories" class="form-input" min="0" max="15000" placeholder="Auto-estimated">
+              <span class="form-helper">Estimated automatically (you can edit).</span>
+            </div>
+
+            <div class="form-group">
+              <label for="inputSteps" class="form-label">Steps (Optional)</label>
+              <input type="number" id="inputSteps" class="form-input" min="0" max="100000" placeholder="e.g. 3500">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputDate" class="form-label">Date <span style="color:var(--danger)">*</span></label>
+            <input type="date" id="inputDate" class="form-input" required>
+          </div>
+
+          <div class="form-group">
+            <label for="inputNotes" class="form-label">Notes (Optional)</label>
+            <input type="text" id="inputNotes" class="form-input" placeholder="e.g. Morning jog in the park" maxlength="100">
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="btnCancelLog" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Activity</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Set Daily Goals Modal -->
+  <div id="goalsModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="goalsModalTitle">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="goalsModalTitle" class="modal-title">Customize Daily Fitness Goals</h2>
+        <button id="btnCloseGoalsModal" class="modal-close-btn" aria-label="Close dialog">&times;</button>
+      </div>
+      <form id="goalsForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="goalStepsInput" class="form-label">Daily Step Target</label>
+            <input type="number" id="goalStepsInput" class="form-input" min="500" max="100000" step="500" required>
+          </div>
+          <div class="form-group">
+            <label for="goalCaloriesInput" class="form-label">Daily Calorie Burn Target (kcal)</label>
+            <input type="number" id="goalCaloriesInput" class="form-input" min="100" max="10000" step="50" required>
+          </div>
+          <div class="form-group">
+            <label for="goalMinutesInput" class="form-label">Daily Active Minutes Target</label>
+            <input type="number" id="goalMinutesInput" class="form-input" min="10" max="600" step="5" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="btnCancelGoals" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Targets</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>CodeAlpha App Development Internship &bull; Professional Project Deliverable &bull; Built with Pure Web Standards (HTML5, CSS3, ES6+)</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

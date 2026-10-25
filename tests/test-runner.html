@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automated Test Suite — Fitness Tracker App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 820px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #0b0f19;
+      color: #f9fafb;
+    }
+    .header {
+      background: #111827;
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 1.5rem;
+    }
+    .summary-badge {
+      display: inline-block;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    .badge-success { background: #064e3b; color: #6ee7b7; border: 1px solid #059669; }
+    .badge-fail { background: #7f1d1d; color: #fca5a5; border: 1px solid #dc2626; }
+    .test-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .test-item {
+      background: #1f2937;
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      border-left: 5px solid #475569;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .test-item.pass { border-left-color: #10b981; }
+    .test-item.fail { border-left-color: #ef4444; background: #2d1515; }
+    .test-title { font-weight: 600; font-size: 0.95rem; }
+    .test-status { font-weight: 700; font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: 4px; }
+    .test-status.pass { background: #064e3b; color: #6ee7b7; }
+    .test-status.fail { background: #7f1d1d; color: #fca5a5; }
+    .test-error { font-size: 0.8rem; color: #fca5a5; margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Fitness Tracker App — Unit & Business Logic Test Suite</h1>
+    <p>Automated test assertions covering data validation, MET calorie calculations, daily/weekly aggregations, and local persistence.</p>
+    <div id="testSummary" class="summary-badge">Running tests...</div>
+  </div>
+
+  <div id="testContainer" class="test-list"></div>
+
+  <script type="module">
+    import { FitnessTrackerModel, ACTIVITY_CALORIE_RATES } from '../js/tracker-model.js';
+    import { FitnessStorageService, DEFAULT_GOALS } from '../js/storage.js';
+
+    const testResults = [];
+    const container = document.getElementById('testContainer');
+    const summary = document.getElementById('testSummary');
+
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message || 'Assertion failed');
+      }
+    }
+
+    function runTest(name, testFn) {
+      try {
+        testFn();
+        testResults.push({ name, passed: true });
+      } catch (err) {
+        testResults.push({ name, passed: false, error: err.message });
+      }
+    }
+
+    // --- TEST EXECUTION ---
+
+    runTest('Calorie Estimation: Accurately calculates calories based on exercise MET rates', () => {
+      const running30 = FitnessTrackerModel.estimateCalories('Running', 30);
+      assert(running30 === Math.round(30 * 10.5), 'Running for 30m should burn approx 315 kcal');
+
+      const walking45 = FitnessTrackerModel.estimateCalories('Walking', 45);
+      assert(walking45 === Math.round(45 * 4.0), 'Walking for 45m should burn approx 180 kcal');
+
+      const zeroDuration = FitnessTrackerModel.estimateCalories('HIIT', 0);
+      assert(zeroDuration === 0, 'Zero duration should yield 0 kcal');
+    });
+
+    runTest('Input Validation: Rejects invalid duration, steps, calories, or malformed dates', () => {
+      // Missing type
+      const v1 = FitnessTrackerModel.validateActivityData({ duration: 30, date: '2026-10-23' });
+      assert(!v1.isValid && v1.errors.type, 'Should reject missing exercise type');
+
+      // Zero or negative duration
+      const v2 = FitnessTrackerModel.validateActivityData({ type: 'Running', duration: 0, date: '2026-10-23' });
+      assert(!v2.isValid && v2.errors.duration, 'Should reject zero duration');
+
+      // Invalid date format
+      const v3 = FitnessTrackerModel.validateActivityData({ type: 'Running', duration: 30, date: 'not-a-date' });
+      assert(!v3.isValid && v3.errors.date, 'Should reject non-ISO date string');
+
+      // Valid entry
+      const v4 = FitnessTrackerModel.validateActivityData({ type: 'Cycling', duration: 40, calories: 300, steps: 0, date: '2026-10-23' });
+      assert(v4.isValid, 'Should accept valid activity entry');
+    });
+
+    runTest('CRUD - Add Activity: Appends entry with generated ID and timestamp', () => {
+      const model = new FitnessTrackerModel([]);
+      const entry = model.addActivity({
+        type: 'Running',
+        duration: 35,
+        calories: 360,
+        steps: 4500,
+        date: '2026-10-23',
+        notes: 'Morning jog'
+      });
+
+      assert(model.activities.length === 1, 'Activities array length should be 1');
+      assert(entry.id.startsWith('act-'), 'New record must have an act- prefixed ID');
+      assert(entry.duration === 35, 'Duration must match input');
+      assert(entry.isManual === true, 'isManual flag must be explicitly true');
+    });
+
+    runTest('CRUD - Delete Activity: Removes entry and handles non-existent IDs gracefully', () => {
+      const initial = [
+        { id: 'act-1', type: 'Walking', duration: 20, calories: 80, steps: 2000, date: '2026-10-23' }
+      ];
+      const model = new FitnessTrackerModel(initial);
+
+      const delUnknown = model.deleteActivity('act-nonexistent');
+      assert(delUnknown === false, 'Deleting non-existent ID should return false');
+
+      const delSuccess = model.deleteActivity('act-1');
+      assert(delSuccess === true, 'Deleting existing record should return true');
+      assert(model.activities.length === 0, 'Model activities should be empty');
+    });
+
+    runTest('Daily Progress Aggregation: Accurately computes totals and percentages', () => {
+      const todayStr = '2026-10-23';
+      const activities = [
+        { id: '1', type: 'Running', duration: 30, calories: 300, steps: 4000, date: todayStr },
+        { id: '2', type: 'Walking', duration: 20, calories: 100, steps: 2000, date: todayStr },
+        { id: '3', type: 'Cycling', duration: 45, calories: 350, steps: 0, date: '2026-10-20' } // Different date
+      ];
+      const goals = { dailySteps: 10000, dailyCalories: 500, dailyMinutes: 60 };
+      const model = new FitnessTrackerModel(activities, goals);
+
+      const progress = model.getDailyProgress(todayStr);
+      assert(progress.totalSteps === 6000, `Total steps for ${todayStr} should be 6000`);
+      assert(progress.totalCalories === 400, `Total calories should be 400`);
+      assert(progress.totalMinutes === 50, `Total minutes should be 50`);
+      assert(progress.stepsGoalPercent === 60, `Steps progress should be 60%`);
+      assert(progress.caloriesGoalPercent === 80, `Calories progress should be 80%`);
+    });
+
+    runTest('Weekly Aggregation: Calculates rolling 7-day stats and averages', () => {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const activities = [
+        { id: '1', type: 'Running', duration: 30, calories: 300, steps: 4000, date: todayStr },
+        { id: '2', type: 'Walking', duration: 30, calories: 150, steps: 3000, date: todayStr }
+      ];
+      const model = new FitnessTrackerModel(activities);
+
+      const summary = model.getWeeklySummary();
+      assert(summary.totalWorkouts === 2, 'Total weekly workouts should be 2');
+      assert(summary.totalMinutes === 60, 'Total weekly minutes should be 60');
+      assert(summary.totalCalories === 450, 'Total weekly calories should be 450');
+      assert(summary.totalSteps === 7000, 'Total weekly steps should be 7000');
+    });
+
+    runTest('Goal Customization: Allows updating and persisting daily target values', () => {
+      const model = new FitnessTrackerModel([]);
+      model.setGoals({ dailySteps: 12000, dailyCalories: 650, dailyMinutes: 50 });
+      assert(model.goals.dailySteps === 12000, 'dailySteps should update to 12000');
+      assert(model.goals.dailyCalories === 650, 'dailyCalories should update to 650');
+      assert(model.goals.dailyMinutes === 50, 'dailyMinutes should update to 50');
+    });
+
+    runTest('Storage Service: Persists activities and goal configurations', () => {
+      const testActivities = [{ id: 'test-act-1', type: 'Yoga', duration: 30, calories: 105, steps: 0, date: '2026-10-23' }];
+      FitnessStorageService.saveActivities(testActivities);
+      const loaded = FitnessStorageService.loadActivities();
+      assert(loaded.length === 1 && loaded[0].id === 'test-act-1', 'Loaded activities must match saved activity');
+
+      const testGoals = { dailySteps: 15000, dailyCalories: 750, dailyMinutes: 60 };
+      FitnessStorageService.saveGoals(testGoals);
+      const loadedGoals = FitnessStorageService.loadGoals();
+      assert(loadedGoals.dailySteps === 15000, 'Loaded goals must match saved goals');
+    });
+
+    // --- RENDER RESULTS ---
+    let passedCount = 0;
+    container.innerHTML = '';
+
+    testResults.forEach(res => {
+      if (res.passed) passedCount++;
+      const item = document.createElement('div');
+      item.className = `test-item ${res.passed ? 'pass' : 'fail'}`;
+      item.innerHTML = `
+        <div>
+          <div class="test-title">${res.name}</div>
+          ${res.error ? `<div class="test-error">${res.error}</div>` : ''}
+        </div>
+        <span class="test-status ${res.passed ? 'pass' : 'fail'}">${res.passed ? 'PASSED' : 'FAILED'}</span>
+      `;
+      container.appendChild(item);
+    });
+
+    const allPassed = passedCount === testResults.length;
+    summary.className = `summary-badge ${allPassed ? 'badge-success' : 'badge-fail'}`;
+    summary.textContent = `${passedCount} of ${testResults.length} Tests Passed (${allPassed ? '100% Success' : 'Failures Detected'})`;
+  </script>
+</body>
+</html>
